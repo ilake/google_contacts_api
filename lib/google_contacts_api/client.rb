@@ -1,4 +1,5 @@
 require "google_contacts_api/config"
+require "google/api_client"
 
 module GoogleContactsApi
   class Client

@@ -147,14 +147,24 @@ module GoogleContactsApi
             )
           end
         when :birthday
-          doc.xpath("//*[name()='gContact:birthday']").first.attributes["when"].value = value
-        when :group_id
-          unless doc.to_xml.match(/#{value}/)
-            doc.children.children.last.add_next_sibling(
-              %Q|<gContact:groupMembershipInfo deleted="false" href="#{group_base_url(value)}" />|
+          doc.xpath("//*[name()='gContact:birthday']").remove
+          doc.children.children.last.add_next_sibling(
+            %Q|<gContact:birthday when='#{value}' />|
+          )
+        when :add_group_ids
+          Array(value).each do |group_id|
+            unless doc.to_xml.match(/#{group_id}/)
+              doc.children.children.last.add_next_sibling(
+                %Q|<gContact:groupMembershipInfo deleted="false" href="#{group_base_url(group_id)}" />|
             )
+            end
           end
-        else
+        when :remove_group_ids
+          Array(value).each do |group_id|
+            if doc.to_xml.match(/#{group_id}/)
+              doc.xpath("//*[name()='gContact:groupMembershipInfo'][contains(@href, '#{group_id}')]").remove
+            end
+          end
         end
       end
       doc

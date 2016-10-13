@@ -23,7 +23,7 @@ module GoogleContactsApi
 
     # http://www.google.com/m8/feeds/groups/{UserEmail}/base/abcdefg
     def url(group_id)
-      @url ||= groups.first.base_url.sub(/base\/\w+/, "base/#{group_id}")
+      groups.first.base_url.sub(/base\/\w+/, "base/#{group_id}")
     end
     alias_method :group_base_url, :url
 
