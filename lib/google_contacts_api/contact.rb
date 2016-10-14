@@ -133,7 +133,7 @@ module GoogleContactsApi
             )
           end
         when :address
-          # address: { work: { street: 新清洲6-2-5 部屋番號, city: 清須市, region: 愛知縣, postcode: 4520943, country: 日本}}
+          # address: { work: { street: street_name, city: city_name, region: region, postcode: postcode, country: Taiwan}}
           doc.xpath("//*[name()='gd:structuredPostalAddress']").remove
           value.each do |phone_type, phone_value|
             doc.children.children.last.add_next_sibling(
