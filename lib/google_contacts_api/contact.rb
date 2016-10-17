@@ -67,9 +67,9 @@ module GoogleContactsApi
         }.tap do |basic_data|
           # Extract a few useful bits from the basic data
           basic_data[:full_name] = basic_data[:name_data].try(:[], :full_name)
-          primary_email_data = basic_data[:emails].find { |type, email| email[:primary] }
+          primary_email_data = basic_data[:emails].find { |type, email| email["primary"] }
           if primary_email_data
-            basic_data[:primary_email] = primary_email_data.last[:address]
+            basic_data[:primary_email] = primary_email_data.last["address"]
           end
         end
         GoogleContact.new(contact_raw_data)
@@ -173,17 +173,15 @@ module GoogleContactsApi
 end
 
 class GoogleContact
-  attr_accessor :id, :first_name, :last_name, :email_address, :raw_data
+  extend Forwardable
+  attr_accessor :first_name, :last_name, :phonetic_first_name, :phonetic_last_name, :raw_data
+  def_delegators :@raw_data, :group_ids, :birthday, :id, :primary_email, :emails, :addresses, :phone_numbers
 
   def initialize(raw_data)
-    @raw_data = raw_data
+    @raw_data = Hashie::Mash.new(raw_data)
     @first_name = raw_data && raw_data[:name_data] ? raw_data[:name_data][:given_name] : nil
     @last_name = raw_data && raw_data[:name_data] ? raw_data[:name_data][:family_name] : nil
-    @id = raw_data[:id]
-    @email_address = raw_data[:primary_email]
-  end
-
-  def full_name
-    "#{@first_name} #{@last_name}"
+    @phonetic_first_name = raw_data && raw_data[:name_data] ? raw_data[:name_data][:phonetic_given_name] : nil
+    @phonetic_last_name = raw_data && raw_data[:name_data] ? raw_data[:name_data][:phonetic_family_name] : nil
   end
 end

@@ -7,10 +7,10 @@ module GoogleContactsApi
       (records || []).inject({}) do |memo, record|
         key = (record['rel'] || 'unknown').split('#').last.to_sym
         value = cleanse_gdata(record.except('rel'))
-        value[:primary] = true if value[:primary] == 'true' # cast to a boolean for primary entries
-        value[:protocol] = value[:protocol].split('#').last if value[:protocol].present? # clean namespace from handle protocols
-        value = value[:$t] if value[:$t].present? # flatten out entries with keys of '$t'
-        value = value[:href] if value.is_a?(Hash) && value.keys == [:href] # flatten out entries with keys of 'href'
+        value["primary"] = true if record["primary"] == 'true' # cast to a boolean for primary entries
+        value["protocol"] = record["protocol"].split('#').last if value["protocol"].present? # clean namespace from handle protocols
+        value = value["$t"] if value["$t"].present? # flatten out entries with keys of '$t'
+        value = value["href"] if value.is_a?(Hash) && value.keys.include?("href") # flatten out entries with keys of 'href'
         memo[key] = value
         memo
       end
@@ -25,10 +25,24 @@ module GoogleContactsApi
     #       :given_name => "Bob",
     #       :family_name => "Smith" }
     def cleanse_gdata(hash)
-      (hash || {}).inject({}) do |m, (k, v)|
+      (hash || {}).inject({}) do |m, (k, value)|
         k = k.gsub(/\Agd\$/, '').underscore # remove leading 'gd$' on key names and switch to underscores
-        v = v['$t'] if v.is_a?(Hash) && v.keys == ['$t'] # flatten out { '$t' => "value" } results
-        m[k.to_sym] = v
+
+        if value.is_a?(Hash)
+          if value.keys.include?('$t') # flatten out { '$t' => "value" } results
+            m[k.to_sym] = value['$t']
+          end
+
+          if value.keys.include?('yomi')
+            m["phonetic_#{k}".to_sym] = value["yomi"]
+          end
+
+          if value.keys.exclude?('$t') && value.keys.exclude?('yomi')
+            m[k] = value
+          end
+        else
+          m[k] = value
+        end
         m
       end
     end

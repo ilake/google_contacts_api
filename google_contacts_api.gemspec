@@ -32,4 +32,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rspec"
   spec.add_dependency "nokogiri", "~> 1.6.8"
   spec.add_dependency "google-api-client", "~> 0.8.6"
+  spec.add_dependency "hashie", "~> 3.4.4"
 end
