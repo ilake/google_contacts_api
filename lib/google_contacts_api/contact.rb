@@ -26,14 +26,13 @@ module GoogleContactsApi
     end
 
     def show(contact_id, options = {})
-      result = get("#{BASE_URL}/#{contact_id}", headers: { "GData-Version"=>"3.0", "Content-Type" => "application/atom+xml" }.merge(options))
-
-      result[:body]
+      result = get("#{BASE_URL}/#{contact_id}", parameters: { "alt" => "json"}.merge(options))
+      process_contact(result[:data]['entry'])
     end
     alias_method :contact, :show
 
     def update(contact_id, options)
-      content = show(contact_id)
+      content = xml_of_show(contact_id)
       doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
       doc = handle_contact_options(doc, options)
       put("#{BASE_URL}/#{contact_id}", doc.to_xml)
@@ -49,31 +48,41 @@ module GoogleContactsApi
 
     protected
 
+    def xml_of_show(contact_id, options = {})
+      result = get("#{BASE_URL}/#{contact_id}", headers: { "GData-Version"=>"3.0", "Content-Type" => "application/atom+xml" }.merge(options))
+
+      result[:body]
+    end
+
     def process_contacts_list(group_list)
       (group_list || []).map do |contact|
-        contact_raw_data = {
-          id: parse_id(pure_data(contact["id"])),
-          emails: extract_schema(contact['gd$email']),
-          phone_numbers: extract_schema(contact['gd$phoneNumber']),
-          handles: extract_schema(contact['gd$im']),
-          addresses: extract_schema(contact['gd$structuredPostalAddress']),
-          name_data: cleanse_gdata(contact['gd$name']),
-          nickname: contact['gContact$nickname'] && contact['gContact$nickname']['$t'],
-          websites: extract_schema(contact['gContact$website']),
-          organizations: extract_schema(contact['gd$organization']),
-          events: extract_schema(contact['gContact$event']),
-          group_ids: contact["gContact$groupMembershipInfo"] ? contact["gContact$groupMembershipInfo"].map{|g| parse_id(g["href"]) } : [],
-          birthday: contact['gContact$birthday'].try(:[], "when")
-        }.tap do |basic_data|
-          # Extract a few useful bits from the basic data
-          basic_data[:full_name] = basic_data[:name_data].try(:[], :full_name)
-          primary_email_data = basic_data[:emails].find { |type, email| email["primary"] }
-          if primary_email_data
-            basic_data[:primary_email] = primary_email_data.last["address"]
-          end
-        end
-        GoogleContact.new(contact_raw_data)
+        process_contact(contact)
       end
+    end
+
+    def process_contact(contact)
+      contact_raw_data = {
+        id: parse_id(pure_data(contact["id"])),
+        emails: extract_schema(contact['gd$email']),
+        phone_numbers: extract_schema(contact['gd$phoneNumber']),
+        handles: extract_schema(contact['gd$im']),
+        addresses: extract_schema(contact['gd$structuredPostalAddress']),
+        name_data: cleanse_gdata(contact['gd$name']),
+        nickname: contact['gContact$nickname'] && contact['gContact$nickname']['$t'],
+        websites: extract_schema(contact['gContact$website']),
+        organizations: extract_schema(contact['gd$organization']),
+        events: extract_schema(contact['gContact$event']),
+        group_ids: contact["gContact$groupMembershipInfo"] ? contact["gContact$groupMembershipInfo"].map{|g| parse_id(g["href"]) } : [],
+        birthday: contact['gContact$birthday'].try(:[], "when")
+      }.tap do |basic_data|
+        # Extract a few useful bits from the basic data
+        basic_data[:full_name] = basic_data[:name_data].try(:[], :full_name)
+        primary_email_data = basic_data[:emails].find { |type, email| email["primary"] }
+        if primary_email_data
+          basic_data[:primary_email] = primary_email_data.last["address"]
+        end
+      end
+      GoogleContact.new(contact_raw_data)
     end
 
     def contact_xml_template
