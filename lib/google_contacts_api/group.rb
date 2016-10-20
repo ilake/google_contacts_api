@@ -17,7 +17,16 @@ module GoogleContactsApi
     alias_method :groups, :list
 
     def create(title)
-      post(BASE_URL, group_xml(title))
+      result = post(BASE_URL, group_xml(title))
+      doc = Nokogiri::XML(CGI::unescape(result[:body]).delete("\n"))
+      base_url = doc.xpath("//*[name()='id']").first.content
+      raw_data = {
+        title: doc,
+        id: parse_id(base_url),
+        base_url: base_url
+      }
+
+      GoogleGroup.new(raw_data)
     end
     alias_method :create_group, :create
 
