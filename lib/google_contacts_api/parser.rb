@@ -4,14 +4,16 @@ module GoogleContactsApi
 
     # Turn an array of hashes into a hash with keys based on the original hash's 'rel' values, flatten, and cleanse.
     def extract_schema(records)
-      (records || []).inject({}) do |memo, record|
+      (records || []).map do |record|
+        memo = {}
         key = (record['rel'] || 'unknown').split('#').last.to_sym
         value = cleanse_gdata(record.except('rel'))
         value["primary"] = true if record["primary"] == 'true' # cast to a boolean for primary entries
         value["protocol"] = record["protocol"].split('#').last if value["protocol"].present? # clean namespace from handle protocols
         value = value["$t"] if value["$t"].present? # flatten out entries with keys of '$t'
         value = value["href"] if value.is_a?(Hash) && value.keys.include?("href") # flatten out entries with keys of 'href'
-        memo[key] = value
+        memo["type"] = key
+        memo["value"] = value
         memo
       end
     end

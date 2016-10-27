@@ -77,10 +77,8 @@ module GoogleContactsApi
       }.tap do |basic_data|
         # Extract a few useful bits from the basic data
         basic_data[:full_name] = basic_data[:name_data].try(:[], :full_name)
-        primary_email_data = basic_data[:emails].find { |type, email| email["primary"] }
-        if primary_email_data
-          basic_data[:primary_email] = primary_email_data.last["address"]
-        end
+        primary_email_data = basic_data[:emails].find { |email_hash| email_hash["value"]["primary"] }
+        basic_data[:primary_email] = primary_email_data if primary_email_data
       end
       GoogleContact.new(contact_raw_data)
     end
