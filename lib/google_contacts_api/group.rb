@@ -30,6 +30,14 @@ module GoogleContactsApi
     end
     alias_method :create_group, :create
 
+    def update(group_id, title)
+      content = xml_of_group_show(group_id)
+      doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
+      doc.xpath("//*[name()='title']").first.content = title.to_s.encode(xml: :text)
+      put("#{BASE_URL}/#{group_id}", doc.to_xml)
+    end
+    alias_method :update_group, :update
+
     # http://www.google.com/m8/feeds/groups/{UserEmail}/base/abcdefg
     def url(group_id)
       groups.first.base_url.sub(/base\/\w+/, "base/#{group_id}")
@@ -37,6 +45,12 @@ module GoogleContactsApi
     alias_method :group_base_url, :url
 
     private
+
+    def xml_of_group_show(group_id, options = {})
+      result = get("#{BASE_URL}/#{group_id}", headers: { "GData-Version"=>"3.0", "Content-Type" => "application/atom+xml" }.merge(options))
+
+      result[:body]
+    end
 
     def group_xml(title)
       <<-EOS
