@@ -111,45 +111,51 @@ module GoogleContactsApi
             name_node = doc.xpath("//*[name()='gd:#{name_type}']").first
             name_node.attributes["yomi"].value = name_value
           end
-        when :email
-          # email: { work: { address: address, primary: false }, other: {...}}
+        when :emails
+          # "emails"=> [
+          #   {"type"=>"home", "value"=> { "address" =>  "taiwanhimawari@gmail.com" }, "primary": true},
+          #   {"type"=>"unknown", "value"=> { "address" => "studioha3@dreamhint.com"}}
+          # ]
           doc.xpath("//*[name()='gd:email']").remove
-          value.each do |email_type, email_value|
-            attr = if EMAIL_TYPES.include?(email_type)
-                     %Q|rel="http://schemas.google.com/g/2005##{email_type}"|
+          value.each do |email_hash|
+            attr = if EMAIL_TYPES.include?(email_hash["type"])
+                     %Q|rel="http://schemas.google.com/g/2005##{email_hash["type"]}"|
                    else
-                     %Q|label="#{email_type}"|
+                     %Q|label="#{email_hash["type"]}"|
                    end
 
             doc.children.children.last.add_next_sibling(
-              %Q|<gd:email #{attr} address="#{email_value[:address]}" primary="#{!!email_value[:primary]}" />|
+              %Q|<gd:email #{attr} address="#{email_hash["value"]["address"]}" primary="#{!!email_hash["primary"]}" />|
             )
           end
-        when :phone
-          # phone: { work: { number: number, primary: false } }
+        when :phone_numbers
+          # "phone_numbers"=> [
+          #   {"type"=>"mobile", "value"=>"08036238534"},
+          #   {"type"=>"home", "value"=>"0524095796"}
+          # ]
           doc.xpath("//*[name()='gd:phoneNumber']").remove
-          value.each do |phone_type, phone_value|
-            attr = if PHONE_TYPES.include?(phone_type)
-                     %Q|rel="http://schemas.google.com/g/2005##{phone_type}"|
+          value.each do |phone_hash|
+            attr = if PHONE_TYPES.include?(phone_hash["type"])
+                     %Q|rel="http://schemas.google.com/g/2005##{phone_hash["type"]}"|
                    else
-                     %Q|label="#{phone_type}"|
+                     %Q|label="#{phone_hash["type"]}"|
                    end
 
             doc.children.children.last.add_next_sibling(
-              %Q|<gd:phoneNumber #{attr} primary="#{!!phone_value[:primary]}">#{phone_value[:number]}</gd:phoneNumber>|
+              %Q|<gd:phoneNumber #{attr} primary="#{!!phone_hash["primary"]}">#{phone_hash["value"]}</gd:phoneNumber>|
             )
           end
-        when :address
-          # address: { work: { street: street_name, city: city_name, region: region, postcode: postcode, country: Taiwan}}
+        when :addresses
+          # addresses: [{ type: work, value: { street: street_name, city: city_name, region: region, postcode: postcode, country: Taiwan}}]
           doc.xpath("//*[name()='gd:structuredPostalAddress']").remove
-          value.each do |phone_type, phone_value|
+          value.each do |address_hash|
             doc.children.children.last.add_next_sibling(
-              %Q|<gd:structuredPostalAddress rel="http://schemas.google.com/g/2005##{phone_type}" primary="#{!!phone_value[:primary]}">
-                   <gd:street>#{phone_value[:street]}</gd:street>
-                   <gd:city>#{phone_value[:city]}</gd:city>
-                   <gd:region>#{phone_value[:region]}</gd:region>
-                   <gd:postcode>#{phone_value[:postcode]}</gd:postcode>
-                   <gd:country>#{phone_value[:country]}</gd:country>
+              %Q|<gd:structuredPostalAddress rel="http://schemas.google.com/g/2005##{address_hash["type"]}" primary="#{!!address_hash["primary"]}">
+                   <gd:street>#{address_hash["value"]["street"]}</gd:street>
+                   <gd:city>#{address_hash["value"]["city"]}</gd:city>
+                   <gd:region>#{address_hash["value"]["region"]}</gd:region>
+                   <gd:postcode>#{address_hash["value"]["postcode"]}</gd:postcode>
+                   <gd:country>#{address_hash["value"]["country"]}</gd:country>
                  </gd:structuredPostalAddress>|
             )
           end
