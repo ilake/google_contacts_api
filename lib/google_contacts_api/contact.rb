@@ -40,9 +40,19 @@ module GoogleContactsApi
     alias_method :update_contact, :update
 
     def create(options)
-      doc = Nokogiri::XML(contact_xml_template)
+      doc = Nokogiri::XML(contact_xml_template.delete("\n"))
       doc = handle_contact_options(doc, options)
-      post(BASE_URL, doc.to_xml)
+      contact_xml = doc.to_xml
+      result = post(BASE_URL, contact_xml)
+
+      doc = Nokogiri::XML(CGI::unescape(result[:body]).delete("\n"))
+      base_url = doc.xpath("//*[name()='id']").first.content
+
+      contact_id = parse_id(base_url)
+      # XXX: Could not create name with phonetic_name at the same time, so we need to create then update it
+      put("#{BASE_URL}/#{contact_id}", contact_xml)
+
+      Hashie::Mash.new({ id:  contact_id})
     end
     alias_method :create_contact, :create
 
@@ -84,15 +94,17 @@ module GoogleContactsApi
     end
 
     def contact_xml_template
-      <<-EOF
-        <atom:entry xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gd="http://schemas.google.com/g/2005">
-          <atom:category scheme="http://schemas.google.com/g/2005#kind" term="http://schemas.google.com/contact/2008#contact"/>
-          <title></title>
-          <gd:name>
-            <gd:givenName></gd:givenName>
-            <gd:familyName></gd:familyName>
-          </gd:name>
-        </atom:entry>
+      <<-EOF.strip_heredoc
+      <atom:entry xmlns:gd="http://schemas.google.com/g/2005"
+        xmlns:atom="http://www.w3.org/2005/Atom">
+        <atom:category scheme="http://schemas.google.com/g/2005#kind" term="http://schemas.google.com/contact/2008#contact"/>
+        <title></title>
+        <gd:name>
+          <gd:fullName></gd:fullName>
+          <gd:givenName yomi=""></gd:givenName>
+          <gd:familyName yomi=""></gd:familyName>
+        </gd:name>
+      </atom:entry>
       EOF
     end
 
@@ -102,14 +114,33 @@ module GoogleContactsApi
         when :name
           # name: { familyName: last_name, givenName: first_name}
           value.each do |name_type, name_value|
-            doc.xpath("//*[name()='gd:#{name_type}']").first.content = name_value
+            if doc.xpath("//*[name()='gd:#{name_type}']").first
+              doc.xpath("//*[name()='gd:#{name_type}']").first.content = name_value
+            else
+              doc.children.children.first.add_next_sibling(
+                %Q|<gd:#{name_type} yomi="">#{name_value}</gd:#{name_type}>|
+              )
+            end
           end
-          doc.xpath("//*[name()='title']").first.content = "#{value[:givenName]} #{value[:familyName]}"
+
+          if doc.xpath("//*[name()='title']").first
+            doc.xpath("//*[name()='title']").first.content = "#{value["familyName"]} #{value["givenName"]}"
+            doc.xpath("//*[name()='gd:fullName']").first.content = "#{value["familyName"]} #{value["givenName"]}"
+          else
+            doc.children.children.first.add_next_sibling(
+              %Q|<title>#{value["familyName"]} #{value["givenName"]}</title>|
+            )
+            doc.xpath("//*[name()='gd:fullName']").first.content = "#{value["familyName"]} #{value["givenName"]}"
+          end
         when :phonetic_name
           # phonetic_name: { familyName: last_name, givenName: first_name}
           value.each do |name_type, name_value|
             name_node = doc.xpath("//*[name()='gd:#{name_type}']").first
-            name_node.attributes["yomi"].value = name_value
+            if name_node.attributes["yomi"]
+              name_node.attributes["yomi"].value = name_value
+            elsif name_value
+              name_node.set_attribute("yomi", name_value)
+            end
           end
         when :emails
           # "emails"=> [
