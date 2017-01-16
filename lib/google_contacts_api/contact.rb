@@ -47,9 +47,14 @@ module GoogleContactsApi
     def update(contact_id, options)
       do_retry do
         content = xml_of_show(contact_id)
-        doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
-        doc = handle_contact_options(doc, options)
-        put("#{BASE_URL}/#{contact_id}", doc.to_xml)
+
+        if content.match(/Contact not found/)
+          create_contact(options)
+        else
+          doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
+          doc = handle_contact_options(doc, options)
+          put("#{BASE_URL}/#{contact_id}", doc.to_xml)
+        end
       end
     end
     alias_method :update_contact, :update

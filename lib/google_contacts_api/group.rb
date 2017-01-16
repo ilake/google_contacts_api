@@ -37,9 +37,13 @@ module GoogleContactsApi
     def update(group_id, title)
       do_retry do
         content = xml_of_group_show(group_id)
-        doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
-        doc.xpath("//*[name()='title']").first.content = title.to_s.encode(xml: :text)
-        put("#{BASE_URL}/#{group_id}", doc.to_xml)
+        if content.match(/Group not found/)
+          create_group(title)
+        else
+          doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
+          doc.xpath("//*[name()='title']").first.content = title.to_s.encode(xml: :text)
+          put("#{BASE_URL}/#{group_id}", doc.to_xml)
+        end
       end
     end
     alias_method :update_group, :update
