@@ -2,12 +2,14 @@ require "google_contacts_api/client"
 require "google_contacts_api/request"
 require "google_contacts_api/parser"
 require "google_contacts_api/group"
+require "google_contacts_api/helpers"
 
 module GoogleContactsApi
   module Contact
-    include Request
-    include Parser
-    include Group
+    include GoogleContactsApi::Request
+    include GoogleContactsApi::Parser
+    include GoogleContactsApi::Group
+    include GoogleContactsApi::Helpers
 
     BASE_URL = "https://www.google.com/m8/feeds/contacts/default/full"
     EMAIL_TYPES = %i(work home other).freeze
@@ -15,36 +17,40 @@ module GoogleContactsApi
     GOOGLE_VOICE_LABEL = "grandcentral"
 
     def list(options = {})
-      result = get(BASE_URL, parameters: { 'alt' => 'json', 'updated-min' => options[:since] || '1901-01-16T00:00:00', 'max-results' => '100000' }.merge(options))
+      do_retry do
+        result = get(BASE_URL, parameters: { 'alt' => 'json', 'updated-min' => options[:since] || '1901-01-16T00:00:00', 'max-results' => '100000' }.merge(options))
 
-      if result.try(:[], :data).try(:[], 'feed').try(:[], 'entry')
         process_contacts_list(result[:data]['feed']['entry'])
-      else
-        []
       end
     end
     alias_method :contacts, :list
 
     def group_contacts(group_id)
-      list(group: group_base_url(group_id))
+      do_retry do
+        list(group: group_base_url(group_id))
+      end
     end
 
     def show(contact_id, options = {})
-      result = get("#{BASE_URL}/#{contact_id}", parameters: { "alt" => "json"}.merge(options))
+      do_retry do
+        result = get("#{BASE_URL}/#{contact_id}", parameters: { "alt" => "json"}.merge(options))
 
-      if result.try(:[], :data).try(:[], 'entry')
-        process_contact(result[:data]['entry'])
-      else
-        GoogleContact.new(nil)
+        if result[:data]['entry']
+          process_contact(result[:data]['entry'])
+        else
+          GoogleContact.new(nil)
+        end
       end
     end
     alias_method :contact, :show
 
     def update(contact_id, options)
-      content = xml_of_show(contact_id)
-      doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
-      doc = handle_contact_options(doc, options)
-      put("#{BASE_URL}/#{contact_id}", doc.to_xml)
+      do_retry do
+        content = xml_of_show(contact_id)
+        doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
+        doc = handle_contact_options(doc, options)
+        put("#{BASE_URL}/#{contact_id}", doc.to_xml)
+      end
     end
     alias_method :update_contact, :update
 

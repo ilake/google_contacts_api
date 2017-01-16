@@ -1,24 +1,21 @@
 require "google_contacts_api/client"
 require "google_contacts_api/request"
 require "google_contacts_api/parser"
+require "google_contacts_api/helpers"
 
 module GoogleContactsApi
   module Group
     include GoogleContactsApi::Request
     include GoogleContactsApi::Parser
+    include GoogleContactsApi::Helpers
 
     BASE_URL = "https://www.google.com/m8/feeds/groups/default/full"
 
     def list
-      tries ||= 3
-      result = get(BASE_URL, parameters: { 'alt' => 'json', 'max-results' => '100' })
+      do_retry do
+        result = get(BASE_URL, parameters: { 'alt' => 'json', 'max-results' => '100' })
 
-      process_group_list(result[:data]['feed']['entry'])
-    rescue => e
-      if (tries -= 1).zero?
-        raise e
-      else
-        retry
+        process_group_list(result[:data]['feed']['entry'])
       end
     end
     alias_method :groups, :list
@@ -38,10 +35,12 @@ module GoogleContactsApi
     alias_method :create_group, :create
 
     def update(group_id, title)
-      content = xml_of_group_show(group_id)
-      doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
-      doc.xpath("//*[name()='title']").first.content = title.to_s.encode(xml: :text)
-      put("#{BASE_URL}/#{group_id}", doc.to_xml)
+      do_retry do
+        content = xml_of_group_show(group_id)
+        doc = Nokogiri::XML(CGI::unescape(content).delete("\n"))
+        doc.xpath("//*[name()='title']").first.content = title.to_s.encode(xml: :text)
+        put("#{BASE_URL}/#{group_id}", doc.to_xml)
+      end
     end
     alias_method :update_group, :update
 
