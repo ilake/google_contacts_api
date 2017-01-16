@@ -10,12 +10,15 @@ module GoogleContactsApi
     BASE_URL = "https://www.google.com/m8/feeds/groups/default/full"
 
     def list
+      tries ||= 3
       result = get(BASE_URL, parameters: { 'alt' => 'json', 'max-results' => '100' })
 
-      if result.try(:[], :data).try(:[], 'feed').try(:[], 'entry')
-        process_group_list(result[:data]['feed']['entry'])
+      process_group_list(result[:data]['feed']['entry'])
+    rescue => e
+      if (tries -= 1).zero?
+        raise e
       else
-        []
+        retry
       end
     end
     alias_method :groups, :list
