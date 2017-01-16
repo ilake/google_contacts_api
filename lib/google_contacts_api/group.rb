@@ -12,7 +12,11 @@ module GoogleContactsApi
     def list
       result = get(BASE_URL, parameters: { 'alt' => 'json', 'max-results' => '100' })
 
-      process_group_list(result[:data]['feed']['entry'])
+      if result.try(:[], :data).try(:[], 'feed').try(:[], 'entry')
+        process_group_list(result[:data]['feed']['entry'])
+      else
+        []
+      end
     end
     alias_method :groups, :list
 

@@ -17,7 +17,11 @@ module GoogleContactsApi
     def list(options = {})
       result = get(BASE_URL, parameters: { 'alt' => 'json', 'updated-min' => options[:since] || '1901-01-16T00:00:00', 'max-results' => '100000' }.merge(options))
 
-      process_contacts_list(result[:data]['feed']['entry'])
+      if result.try(:[], :data).try(:[], 'feed').try(:[], 'entry')
+        process_contacts_list(result[:data]['feed']['entry'])
+      else
+        []
+      end
     end
     alias_method :contacts, :list
 
@@ -27,7 +31,12 @@ module GoogleContactsApi
 
     def show(contact_id, options = {})
       result = get("#{BASE_URL}/#{contact_id}", parameters: { "alt" => "json"}.merge(options))
-      process_contact(result[:data]['entry'])
+
+      if result.try(:[], :data).try(:[], 'entry')
+        process_contact(result[:data]['entry'])
+      else
+        GoogleContact.new(nil)
+      end
     end
     alias_method :contact, :show
 
@@ -125,12 +134,18 @@ module GoogleContactsApi
 
           if doc.xpath("//*[name()='title']").first
             doc.xpath("//*[name()='title']").first.content = "#{value["familyName"]} #{value["givenName"]}"
-            doc.xpath("//*[name()='gd:fullName']").first.content = "#{value["familyName"]} #{value["givenName"]}"
           else
             doc.children.children.first.add_next_sibling(
               %Q|<title>#{value["familyName"]} #{value["givenName"]}</title>|
             )
+          end
+
+          if doc.xpath("//*[name()='gd:fullName']").first
             doc.xpath("//*[name()='gd:fullName']").first.content = "#{value["familyName"]} #{value["givenName"]}"
+          else
+            doc.children.children.first.add_next_sibling(
+              %Q|<gd:fullName>#{value["familyName"]} #{value["givenName"]}</gd:fullName>|
+            )
           end
         when :phonetic_name
           # phonetic_name: { familyName: last_name, givenName: first_name}
