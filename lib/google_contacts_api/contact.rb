@@ -162,10 +162,14 @@ module GoogleContactsApi
           # phonetic_name: { familyName: last_name, givenName: first_name}
           value.each do |name_type, name_value|
             name_node = doc.xpath("//*[name()='gd:#{name_type}']").first
-            if name_node.attributes["yomi"]
+            if name_node && name_node.attributes["yomi"]
               name_node.attributes["yomi"].value = name_value
-            elsif name_value
+            elsif name_node && name_value
               name_node.set_attribute("yomi", name_value)
+            else
+              doc.children.children.first.add_next_sibling(
+                %Q|<gd:#{name_type} yomi="#{name_value}" />|
+              )
             end
           end
         when :emails
