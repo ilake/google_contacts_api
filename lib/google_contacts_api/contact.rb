@@ -65,6 +65,9 @@ module GoogleContactsApi
       # XXX: Create not create contact with birthday
       doc_for_create_contact = doc.dup
       doc_for_create_contact.xpath("//*[name()='gContact:birthday']").remove
+      # XXX: Create not create contact with group
+      doc_for_create_contact.xpath("//*[name()='gContact:groupMembershipInfo']").remove
+
       contact_xml = doc_for_create_contact.to_xml
       result = post(BASE_URL, contact_xml)
 
@@ -72,10 +75,9 @@ module GoogleContactsApi
       base_url = doc.xpath("//*[name()='id']").first.content
 
       contact_id = parse_id(base_url)
-      # XXX: Could not create name with phonetic_name at the same time, so we need to create then update it
-      put("#{BASE_URL}/#{contact_id}", contact_xml)
+      update(contact_id, options)
 
-      Hashie::Mash.new({ id:  contact_id})
+      Hashie::Mash.new({ id:  contact_id })
     end
     alias_method :create_contact, :create
 
@@ -105,7 +107,7 @@ module GoogleContactsApi
         websites: extract_schema(contact['gd$website']),
         organizations: extract_schema(contact['gd$organization']),
         events: extract_schema(contact['gd$event']),
-        group_ids: contact["gd$groupMembershipInfo"] ? contact["gd$groupMembershipInfo"].map{|g| parse_id(g["href"]) } : [],
+        group_ids: contact["gContact$groupMembershipInfo"] ? contact["gContact$groupMembershipInfo"].map{|g| parse_id(g["href"]) } : [],
         birthday: contact['gContact$birthday'].try(:[], "when")
       }.tap do |basic_data|
         # Extract a few useful bits from the basic data
@@ -234,14 +236,14 @@ module GoogleContactsApi
           Array(value).each do |group_id|
             unless doc.to_xml.match(/#{group_id}/)
               doc.children.children.last.add_next_sibling(
-                %Q|<gd:groupMembershipInfo deleted="false" href="#{group_base_url(group_id)}" />|
+                %Q|<gContact:groupMembershipInfo deleted="false" href="#{group_base_url(group_id)}" />|
             )
             end
           end
         when :remove_group_ids
           Array(value).each do |group_id|
             if doc.to_xml.match(/#{group_id}/)
-              doc.xpath("//*[name()='gd:groupMembershipInfo'][contains(@href, '#{group_id}')]").remove
+              doc.xpath("//*[name()='gContact:groupMembershipInfo'][contains(@href, '#{group_id}')]").remove
             end
           end
         end
