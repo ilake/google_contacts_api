@@ -62,7 +62,10 @@ module GoogleContactsApi
     def create(options)
       doc = Nokogiri::XML(contact_xml_template.delete("\n"))
       doc = handle_contact_options(doc, options)
-      contact_xml = doc.to_xml
+      # XXX: Create not create contact with birthday
+      doc_for_create_contact = doc.dup
+      doc_for_create_contact.xpath("//*[name()='gContact:birthday']").remove
+      contact_xml = doc_for_create_contact.to_xml
       result = post(BASE_URL, contact_xml)
 
       doc = Nokogiri::XML(CGI::unescape(result[:body]).delete("\n"))
@@ -98,11 +101,11 @@ module GoogleContactsApi
         handles: extract_schema(contact['gd$im']),
         addresses: extract_schema(contact['gd$structuredPostalAddress']),
         name_data: cleanse_gdata(contact['gd$name']),
-        nickname: contact['gContact$nickname'] && contact['gContact$nickname']['$t'],
-        websites: extract_schema(contact['gContact$website']),
+        nickname: contact['gd$nickname'] && contact['gd$nickname']['$t'],
+        websites: extract_schema(contact['gd$website']),
         organizations: extract_schema(contact['gd$organization']),
-        events: extract_schema(contact['gContact$event']),
-        group_ids: contact["gContact$groupMembershipInfo"] ? contact["gContact$groupMembershipInfo"].map{|g| parse_id(g["href"]) } : [],
+        events: extract_schema(contact['gd$event']),
+        group_ids: contact["gd$groupMembershipInfo"] ? contact["gd$groupMembershipInfo"].map{|g| parse_id(g["href"]) } : [],
         birthday: contact['gContact$birthday'].try(:[], "when")
       }.tap do |basic_data|
         # Extract a few useful bits from the basic data
@@ -116,6 +119,8 @@ module GoogleContactsApi
     def contact_xml_template
       <<-EOF.strip_heredoc
       <atom:entry xmlns:gd="http://schemas.google.com/g/2005"
+        xmlns:batch="http://schemas.google.com/gdata/batch"
+        xmlns:gContact="http://schemas.google.com/contact/2008"
         xmlns:atom="http://www.w3.org/2005/Atom">
         <atom:category scheme="http://schemas.google.com/g/2005#kind" term="http://schemas.google.com/contact/2008#contact"/>
         <title></title>
@@ -229,14 +234,14 @@ module GoogleContactsApi
           Array(value).each do |group_id|
             unless doc.to_xml.match(/#{group_id}/)
               doc.children.children.last.add_next_sibling(
-                %Q|<gContact:groupMembershipInfo deleted="false" href="#{group_base_url(group_id)}" />|
+                %Q|<gd:groupMembershipInfo deleted="false" href="#{group_base_url(group_id)}" />|
             )
             end
           end
         when :remove_group_ids
           Array(value).each do |group_id|
             if doc.to_xml.match(/#{group_id}/)
-              doc.xpath("//*[name()='gContact:groupMembershipInfo'][contains(@href, '#{group_id}')]").remove
+              doc.xpath("//*[name()='gd:groupMembershipInfo'][contains(@href, '#{group_id}')]").remove
             end
           end
         end
