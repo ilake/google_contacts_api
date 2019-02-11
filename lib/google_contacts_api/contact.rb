@@ -35,7 +35,7 @@ module GoogleContactsApi
       do_retry do
         result = get("#{BASE_URL}/#{contact_id}", parameters: { "alt" => "json"}.merge(options))
 
-        if result[:data]['entry']
+        if result[:data] && result[:data]['entry']
           process_contact(result[:data]['entry'])
         else
           GoogleContact.new(nil)
