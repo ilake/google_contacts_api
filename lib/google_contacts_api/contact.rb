@@ -44,6 +44,15 @@ module GoogleContactsApi
     end
     alias_method :contact, :show
 
+    def destroy(contact_id, options = {})
+      do_retry do
+        result = delete("#{BASE_URL}/#{contact_id}")
+
+        result[:status] == 202 || result[:status] == 404
+      end
+    end
+    alias_method :delete_contact, :destroy
+
     def update(contact_id, options)
       do_retry do
         content = xml_of_show(contact_id)

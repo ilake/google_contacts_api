@@ -30,5 +30,15 @@ module GoogleContactsApi
 
       { body: response.body, data: response.data }
     end
+
+    def delete(url, options = {})
+      response = client.execute({
+        uri: url,
+        http_method: "DELETE",
+        headers: { "If-Match" => "*" }
+      }.merge(options))
+
+      { body: response.body, data: response.data, status: response.status }
+    end
   end
 end
