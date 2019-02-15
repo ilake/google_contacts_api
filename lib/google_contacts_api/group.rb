@@ -52,7 +52,7 @@ module GoogleContactsApi
       do_retry do
         result = delete("#{BASE_URL}/#{group_id}")
 
-        result[:status] == 202 || result[:status] == 404
+        result[:status] == 200 || result[:status] == 404
       end
     end
     alias_method :delete_group, :destroy
