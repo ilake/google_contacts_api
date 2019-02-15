@@ -48,6 +48,15 @@ module GoogleContactsApi
     end
     alias_method :update_group, :update
 
+    def destroy(group_id)
+      do_retry do
+        result = delete("#{BASE_URL}/#{group_id}")
+
+        result[:status] == 202 || result[:status] == 404
+      end
+    end
+    alias_method :delete_group, :destroy
+
     # http://www.google.com/m8/feeds/groups/{UserEmail}/base/abcdefg
     def url(group_id)
       groups.first.base_url.sub(/base\/\w+/, "base/#{group_id}")
