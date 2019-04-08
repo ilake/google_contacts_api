@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 1.10"
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "rspec"
-  spec.add_dependency "nokogiri", "~> 1.8.1"
+  spec.add_dependency "nokogiri", ">= 1.8.5"
   spec.add_dependency "google-api-client", "~> 0.8.6"
   spec.add_dependency "hashie", "~> 3.4.4"
 end
