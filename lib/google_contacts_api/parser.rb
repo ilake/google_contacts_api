@@ -8,7 +8,10 @@ module GoogleContactsApi
         memo = {}
         key = (record['label'] || record['rel'] || 'unknown').split('#').last.to_sym
         value = cleanse_gdata(record.except('rel'))
-        value["primary"] = true if record["primary"] == 'true' # cast to a boolean for primary entries
+        if record["primary"] == 'true' # cast to a boolean for primary entries
+          value["primary"] = true
+          memo["primary"] = true
+        end
         value["protocol"] = record["protocol"].split('#').last if value["protocol"].present? # clean namespace from handle protocols
         value = value["$t"] if value["$t"].present? # flatten out entries with keys of '$t'
         value = value["href"] if value.is_a?(Hash) && value.keys.include?("href") # flatten out entries with keys of 'href'
